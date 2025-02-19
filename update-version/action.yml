@@ -183,7 +183,7 @@ runs:
         git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
 
         # Fazer push da alteração para o repositório remoto
-        git push origin HEAD:${{ github.ref_name }}
+        git push
       shell: bash
 
     - name: Commit
@@ -200,6 +200,6 @@ runs:
 
         VERSION_SEMANTIC=v${{ inputs.version }}
         git commit -m "Atualização de Versão - $VERSION_SEMANTIC"
-        git push origin HEAD:${{ github.ref_name }}
+        git push
         echo "Versão atualizada para $module_version"
       shell: bash
