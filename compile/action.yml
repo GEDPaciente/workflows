@@ -1,0 +1,64 @@
+name: '🎛️ Build-Check'
+description: 'Verificação de build de modulo'
+inputs:
+  github_token:
+    description: 'Token de acesso ao GitHub'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 🔒 Verificar GitHub Token
+      run: |
+        if [ -z "${{ inputs.github_token }}" ]; then
+          echo "GitHub Token não fornecido."
+          exit 1
+        else
+          echo "GitHub Token está presente."
+        fi
+      shell: bash
+
+    - name: 'Checkout Repositório Parent'
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.ref }}
+        repository: GEDPaciente/mv-ged-parent
+        token: ${{ inputs.github_token }}
+        path: parent
+        submodules: 'true'
+
+    - name: 'Github Repository Triggered by'
+      run: |
+        REPO_NAME=$(basename "${{ github.repository }}")
+        echo "O nome do repositório que disparou a action é: $REPO_NAME"
+        echo "repo_name=$REPO_NAME" >> $GITHUB_ENV
+      shell: bash
+
+    - name: 'Atualizar e Inicializar Submódulos'
+      run: |
+        cd parent
+        git submodule update --init --recursive
+        git submodule foreach git fetch origin
+        git submodule foreach git pull origin ${{ github.ref_name }}
+        cd ..
+      shell: bash
+
+    - name: 'Compile restrict'
+      id: build-only-modules
+      run: |
+        cd parent
+        if [[ ! "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" && ! "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]]; then
+          echo "Buildando cores e ${{env.repo_name}}"
+          mvn clean package -pl mv-ged-core,mv-gap-core,${{ env.repo_name }} -am -DskipTests -q
+        else
+            if [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" ]]; then
+              echo "Buildando somente GED-CORE"
+              mvn clean package -pl mv-ged-core -DskipTests -q
+            elif [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]]; then
+              echo "Buildando somente GAP-CORE"
+              mvn clean package -pl mv-gap-core -DskipTests -q
+            fi
+        fi
+        
+        echo "Build COMPLETO! ${{ env.repo_name }}"
+      shell: bash
