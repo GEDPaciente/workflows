@@ -103,8 +103,8 @@ runs:
         git commit -m "Atualização da versão para ${{ inputs.version }}"
 
         # Fazer pull antes de fazer push para evitar conflitos
-        git pull origin ${{ github.ref_name }} --rebase
-
+        git pull --rebase origin ${{ github.ref_name }}
+        
         # Fazer push da alteração para o repositório remoto
         git push origin HEAD:${{ env.repo_name }}
 
@@ -138,7 +138,7 @@ runs:
         git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
 
         # Fazer pull antes de fazer push para evitar conflitos
-        git pull origin ${{ github.ref_name }} --rebase
+        git pull --rebase origin ${{ github.ref_name }}
 
         # Fazer push da alteração para o repositório remoto
         git push origin HEAD:${{ env.repo_name }}
