@@ -183,8 +183,11 @@ runs:
         git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
 
         # Fazer push da alteração para o repositório remoto
-        git push
+        git push HEAD:$BRANCH
+        echo "Propriedade $PROPERTY_NAME atualizada para ${{ inputs.version }}"
       shell: bash
+      env:
+        BRANCH: ${{ github.head_ref || github.ref_name }}
 
     - name: Commit
       if: env.skip_commit != 'true'
@@ -200,6 +203,8 @@ runs:
 
         VERSION_SEMANTIC=v${{ inputs.version }}
         git commit -m "Atualização de Versão - $VERSION_SEMANTIC"
-        git push
-        echo "Versão atualizada para $module_version"
+        git push HEAD:$BRANCH
+        echo "Versão atualizada para $VERSION_SEMANTIC"
       shell: bash
+      env:
+        BRANCH: ${{ github.head_ref || github.ref_name }}
