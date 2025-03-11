@@ -60,7 +60,6 @@ runs:
         path: module
   
     # Se for core, altera a versão do modulo especifico
-
     - name: 'Check prop to update'
       if: ${{ env.is_core == 'true' }}
       run: |
@@ -71,11 +70,12 @@ runs:
         elif [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]]; then
           PROPERTY_NAME="ged.auth.core.version"
         else
-          exit 0
+          echo "Erro: Repositório não identificado para alteração de versão."
+          exit 1  # Retorna erro no fluxo se o repositório não for encontrado
         fi
-
-        echo "Variavel para alteração: $PROPERTY_NAME"
-
+        
+        echo "Variável para alteração: $PROPERTY_NAME"
+        
         # Salvar a propriedade em uma variável de ambiente
         echo "PROPERTY_NAME=$PROPERTY_NAME" >> $GITHUB_ENV
       shell: bash
