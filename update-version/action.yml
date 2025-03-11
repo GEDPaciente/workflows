@@ -80,18 +80,20 @@ runs:
     # Alterar a versão diretamente nos arquivos
     - name: 'Alterar versão no module/pom.xml'
       run: |
+        cd module
+        
         # Alterar a versão do módulo diretamente no arquivo pom.xml
-        sed -i 's|<version>.*</version>|<version>${{ inputs.version }}</version>|' module/pom.xml
+        sed -i 's|<version>.*</version>|<version>${{ inputs.version }}</version>|' pom.xml
         echo "Versão do módulo alterada para ${{ inputs.version }} no pom.xml"
         
         # Atualizar o package.json
-        if [ -f module/package.json ]; then
+        if [ -f package.json ]; then
           echo "Atualizando versão no package.json para ${{ inputs.version }}"
-          jq --arg version "${{ inputs.version }}" '.version = $version' module/package.json > module/package.json.tmp
-          mv module/package.json.tmp module/package.json
-          git add module/package.json
+          jq --arg version "${{ inputs.version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          git add package.json
         fi
-
+                
         # Adicionar as mudanças no pom.xml ao staging
         git add pom.xml
 
@@ -109,13 +111,15 @@ runs:
     - name: 'Alterar versão no parent/pom.xml'
       if: ${{ env.is_core == 'true' }}
       run: |
+        cd parent
+        
         # Alterar a versão no arquivo pom.xml do repositório pai
         PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
-        sed -i "s|<${PROPERTY_NAME}>.*</${PROPERTY_NAME}>|<${PROPERTY_NAME}>${{ inputs.version }}</${PROPERTY_NAME}>|" parent/pom.xml
+        sed -i "s|<${PROPERTY_NAME}>.*</${PROPERTY_NAME}>|<${PROPERTY_NAME}>${{ inputs.version }}</${PROPERTY_NAME}>|" pom.xml
         echo "Versão do parent alterada para ${{ inputs.version }} no pom.xml"
 
         # Adicionar as mudanças no pom.xml ao staging
-        git add parent/pom.xml
+        git add/pom.xml
 
         # Configurar o usuário para o commit
         git config --local user.email "action@github.com"
@@ -126,4 +130,6 @@ runs:
 
         # Fazer push da alteração para o repositório remoto
         git push
+
+        echo "Atualização do parent concluida"
       shell: bash
