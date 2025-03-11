@@ -79,6 +79,7 @@ runs:
         cd parent/${{ env.repo_name }}
         
         branch_name=$(echo ${{ github.ref_name }} | sed 's/refs\/heads\///g')
+        git fetch origin
         git checkout $branch_name
         git pull origin $branch_name
         
