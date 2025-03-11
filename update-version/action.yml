@@ -51,12 +51,7 @@ runs:
         repository: GEDPaciente/mv-ged-parent
         token: ${{ inputs.github_token }}
         path: parent
-
-    - name: 'Puxar Submódulos do Parent'
-      run: |
-        cd parent
-        git submodule update --init --recursive  # Puxa os submódulos dentro do repositório do Parent
-      shell: bash
+        submodules: 'true'
 
     - name: 'Alterar Versão do Módulo'
       run: |
