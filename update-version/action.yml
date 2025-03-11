@@ -91,6 +91,19 @@ runs:
           mv module/package.json.tmp module/package.json
           git add module/package.json
         fi
+
+        # Adicionar as mudanças no pom.xml ao staging
+        git add pom.xml
+
+        # Configurar o usuário para o commit
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # Comitar as mudanças no pom.xml
+        git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
+
+        # Fazer push da alteração para o repositório remoto
+        git push
       shell: bash
 
     - name: 'Alterar versão no parent/pom.xml'
