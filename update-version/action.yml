@@ -83,7 +83,7 @@ runs:
     - name: 'Compile module with new version'
       run: |
         cd module
-        mvn versions:set -DnewVersion=${{ inputs.version }}
+        mvn versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
 
         if [ -f package.json ]; then
           echo "Atualizando versão no package.json para ${{ inputs.version }}"
@@ -121,7 +121,7 @@ runs:
         echo "Versão do parent alterada para ${{ inputs.version }} no pom.xml"
 
         PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
-        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }}
+        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
 
         echo "Versão alterada da propriedade"
 
