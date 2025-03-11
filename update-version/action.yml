@@ -39,7 +39,7 @@ runs:
 
     - name: 'Is a Core?'
       run: |
-        IS_CORE=$([[ "$GITHUB_REPOSITORY" != "GEDPaciente/mv-ged-core" && "$GITHUB_REPOSITORY" != "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
+        IS_CORE=$([[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" || "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
         echo "É um core? $IS_CORE"
         echo "is_core=$IS_CORE" >> $GITHUB_ENV
       shell: bash
@@ -80,7 +80,11 @@ runs:
         
         branch_name=$(echo ${{ github.ref_name }} | sed 's/refs\/heads\///g')
         git fetch origin
-        git checkout $branch_name
+
+        # Certifique-se de que a branch 'develop' esteja disponível localmente
+        git checkout origin/$branch_name || git checkout -b $branch_name origin/$branch_name
+        
+        # Puxar as últimas alterações da branch 'develop' do repositório remoto
         git pull origin $branch_name
         
         mvn versions:set -DnewVersion=${{ inputs.version }}
