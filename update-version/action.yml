@@ -80,6 +80,8 @@ runs:
         
         branch_name=$(echo ${{ github.ref_name }} | sed 's/refs\/heads\///g')
         git fetch origin
+        git branch -r
+        exit 0
 
         # Certifique-se de que a branch 'develop' esteja disponível localmente
         git checkout origin/$branch_name || git checkout -b $branch_name origin/$branch_name
