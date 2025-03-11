@@ -56,7 +56,7 @@ runs:
     - name: 'Alterar Versão do Módulo'
       run: |
         # Identificar a pasta do módulo disparador da ação
-        MODULE_PATH="parent/${{ github.repository }}"
+        MODULE_PATH="parent/${{ env.repo_name }}"
         echo "Caminho do módulo que disparou a ação: $MODULE_PATH"
 
         # Alterar a versão do módulo dentro da pasta correspondente
