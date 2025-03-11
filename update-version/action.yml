@@ -39,7 +39,7 @@ runs:
 
     - name: 'Is a Core?'
       run: |
-        IS_CORE=$([[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" && "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
+        IS_CORE=$([[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" || "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
         echo "É um core? $IS_CORE"
         echo "is_core=$IS_CORE" >> $GITHUB_ENV
       shell: bash
@@ -51,12 +51,15 @@ runs:
         repository: GEDPaciente/mv-ged-parent
         token: ${{ inputs.github_token }}
         path: parent
+        submodules: 'true'
 
     - name: 'Checkout Repositório do Módulo'
       uses: actions/checkout@v3
       with:
         token: ${{ inputs.github_token }}
         path: module
+  
+    # Se for core, altera a versão do modulo especifico
 
     - name: 'Check prop to update'
       if: ${{ env.is_core == 'true' }}
@@ -76,25 +79,52 @@ runs:
         # Salvar a propriedade em uma variável de ambiente
         echo "PROPERTY_NAME=$PROPERTY_NAME" >> $GITHUB_ENV
       shell: bash
-
-    # Alterar a versão diretamente nos arquivos
-    - name: 'Alterar versão no module/pom.xml'
+      
+    - name: 'Compile module with new version'
       run: |
         cd module
-        
-        # Alterar a versão do módulo diretamente no arquivo pom.xml
-        sed -i 's|<version>.*</version>|<version>${{ inputs.version }}</version>|' pom.xml
-        echo "Versão do módulo alterada para ${{ inputs.version }} no pom.xml"
-        
-        # Atualizar o package.json
+        mvn versions:set -DnewVersion=${{ inputs.version }}
+
         if [ -f package.json ]; then
           echo "Atualizando versão no package.json para ${{ inputs.version }}"
           jq --arg version "${{ inputs.version }}" '.version = $version' package.json > package.json.tmp
           mv package.json.tmp package.json
           git add package.json
         fi
-                
-        # Adicionar as mudanças no pom.xml ao staging
+        
+        echo "Versão alterada do modulo"
+
+        # Adicionar somente o pom.xml ao staging
+        git add pom.xml
+
+        # Configurar o usuário para o commit
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # Comitar as mudanças no pom.xml
+        git commit -m "Atualização da versão para ${{ inputs.version }}"
+
+        # Fazer push da alteração para o repositório remoto
+        git push
+
+        cd ..
+      shell: bash
+      
+    - name: 'Update version in parent'
+      if: ${{ env.is_core == 'true' }}
+      run: |
+        cd parent
+        
+        git submodule update --init --recursive
+        git submodule foreach git fetch origin
+        git submodule foreach git pull origin ${{ github.ref_name }}
+
+        PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
+        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }}
+
+        echo "Versão alterada da propriedade"
+
+        # Adicionar somente o pom.xml ao staging
         git add pom.xml
 
         # Configurar o usuário para o commit
@@ -106,30 +136,4 @@ runs:
 
         # Fazer push da alteração para o repositório remoto
         git push
-      shell: bash
-
-    - name: 'Alterar versão no parent/pom.xml'
-      if: ${{ env.is_core == 'true' }}
-      run: |
-        cd parent
-        
-        # Alterar a versão no arquivo pom.xml do repositório pai
-        PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
-        sed -i "s|<${PROPERTY_NAME}>.*</${PROPERTY_NAME}>|<${PROPERTY_NAME}>${{ inputs.version }}</${PROPERTY_NAME}>|" pom.xml
-        echo "Versão do parent alterada para ${{ inputs.version }} no pom.xml"
-
-        # Adicionar as mudanças no pom.xml ao staging
-        git add/pom.xml
-
-        # Configurar o usuário para o commit
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-
-        # Comitar as mudanças no pom.xml
-        git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
-
-        # Fazer push da alteração para o repositório remoto
-        git push
-
-        echo "Atualização do parent concluida"
       shell: bash
