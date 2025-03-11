@@ -1,52 +1,144 @@
-name: '🚀 Version Flow'
-
-on:
-  push:
-    branches:
-      - develop
-
-jobs:
+name: '🎛️ Atualizar Versão'
+description: 'Atualiza a versão do módulo e realiza um commit.'
+inputs:
   version:
-    name: 'Check version'
-    permissions: write-all
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.check-version.outputs.version }}
-      release_branch: ${{ steps.check-version.outputs.release_branch }}
-    steps:
-      - uses: actions/checkout@v3
-      - name: 'Check commit author'
-        run: |
-          COMMITTER=$(git log -1 --pretty=%an)
-          if [ "$COMMITTER" == "action@github.com" ]; then
-            echo "Commit feito por action@github.com, interrompendo o fluxo."
-            exit 0
-          fi
-      - id: check-version
-        uses: GEDPaciente/workflows/get-and-check-version@main
-        with:
-          release_branch: main
-          github_token: ${{ secrets.GED_PAT }}
+    description: 'Nova versão para ser definida no módulo.'
+    required: true
+  github_token:
+    description: 'Token para clonar workspace'
+    required: true 
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Check Github Token'
+      run: |
+        if [ -z "${{ inputs.github_token }}" ]; then
+          echo "GitHub Token não fornecido."
+          exit 1
+        else
+          echo "GitHub Token está presente."
+        fi
+      shell: bash
 
-  compile:
-    needs: version
-    name: "Compile project"
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - id: compile
-        uses: GEDPaciente/workflows/compile@develop
-        with:
-          github_token: ${{ secrets.GED_PAT }}
+    - name: 'Input Vars Verification'
+      run: |
+        if [ -z "${{ inputs.version }}" ]; then
+          echo "Versão não fornecida."
+          exit 1
+        else
+          echo "Versão fornecida: ${{ inputs.version }}"
+        fi
+      shell: bash
 
-  update-version:
-    needs: [version,compile]
-    name: "Update Version"
-    permissions: write-all
-    runs-on: ubuntu-latest
-    steps:
-      - id: compile
-        uses: GEDPaciente/workflows/update-version@develop
-        with:
-          github_token: ${{ secrets.GED_PAT }}
-          version: ${{ needs.version.outputs.version }}
+    - name: 'Github Repository Triggered by'
+      run: |
+        REPO_NAME=$(basename "${{ github.repository }}")
+        echo "O nome do repositório que disparou a action é: $REPO_NAME"
+        echo "repo_name=$REPO_NAME" >> $GITHUB_ENV
+      shell: bash
+
+    - name: 'Is a Core?'
+      run: |
+        IS_CORE=$([[ "$GITHUB_REPOSITORY" != "GEDPaciente/mv-ged-core" && "$GITHUB_REPOSITORY" != "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
+        echo "É um core? $IS_CORE"
+        echo "is_core=$IS_CORE" >> $GITHUB_ENV
+      shell: bash
+
+    - name: 'Checkout Repositório Parent'
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.ref }}
+        repository: GEDPaciente/mv-ged-parent
+        token: ${{ inputs.github_token }}
+        path: parent
+        submodules: 'true'
+
+    - name: 'Checkout Repositório do Módulo'
+      uses: actions/checkout@v3
+      with:
+        token: ${{ inputs.github_token }}
+        path: module
+  
+    # Se for core, altera a versão do modulo especifico
+
+    - name: 'Check prop to update'
+      if: ${{ env.is_core == 'true' }}
+      run: |
+        repo_name=$(cat $GITHUB_ENV | grep repo_name | cut -d'=' -f2)
+        # Identificar a propriedade a ser alterada com base no repositório
+        if [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" ]]; then
+          PROPERTY_NAME="ged.core.version"
+        elif [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]]; then
+          PROPERTY_NAME="ged.auth.core.version"
+        else
+          exit 0
+        fi
+
+        echo "Variavel para alteração: $PROPERTY_NAME"
+
+        # Salvar a propriedade em uma variável de ambiente
+        echo "PROPERTY_NAME=$PROPERTY_NAME" >> $GITHUB_ENV
+      shell: bash
+      
+    - name: 'Compile module with new version'
+      run: |
+        cd module
+        mvn versions:set -DnewVersion=${{ inputs.version }}
+
+        if [ -f package.json ]; then
+          echo "Atualizando versão no package.json para ${{ inputs.version }}"
+          jq --arg version "${{ inputs.version }}" '.version = $version' package.json > package.json.tmp
+          mv package.json.tmp package.json
+          git add package.json
+        fi
+        
+        echo "Versão alterada do modulo"
+
+        # Adicionar somente o pom.xml ao staging
+        git add pom.xml
+
+        # Configurar o usuário para o commit
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # Comitar as mudanças no pom.xml
+        git commit -m "Atualização da versão para ${{ inputs.version }}"
+
+        # Fazer push da alteração para o repositório remoto
+        git push origin HEAD:${{ env.repo_name }}
+
+        echo "Versão atualizada e commitada para o modulo ${{ env.repo_name }}"
+
+        cd ..
+      shell: bash
+      
+    - name: 'Update version in parent'
+      if: ${{ env.is_core == 'true' }}
+      run: |
+        cd parent
+        
+        git submodule update --init --recursive
+        git submodule foreach git fetch origin
+        git submodule foreach git pull origin ${{ github.ref_name }}
+
+        PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
+        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }}
+
+        echo "Versão alterada da propriedade"
+
+        # Adicionar somente o pom.xml ao staging
+        git add pom.xml
+
+        # Configurar o usuário para o commit
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+        # Comitar as mudanças no pom.xml
+        git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
+
+        # Fazer push da alteração para o repositório remoto
+        git push origin HEAD:${{ env.repo_name }}
+
+        echo "Versão atualizada e commitada para o parent"
+      shell: bash
+      
