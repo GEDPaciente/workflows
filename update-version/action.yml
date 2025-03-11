@@ -78,7 +78,8 @@ runs:
 
         # Salvar a propriedade em uma variável de ambiente
         echo "PROPERTY_NAME=$PROPERTY_NAME" >> $GITHUB_ENV
-
+      shell: bash
+      
     - name: 'Compile module with new version'
       run: |
         cd module
@@ -107,7 +108,8 @@ runs:
         git push
 
         cd ..
-
+      shell: bash
+      
     - name: 'Update version in parent'
       if: ${{ env.is_core == 'true' }}
       run: |
@@ -134,3 +136,5 @@ runs:
 
         # Fazer push da alteração para o repositório remoto
         git push
+      shell: bash
+      
