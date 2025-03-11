@@ -58,7 +58,7 @@ runs:
     - name: 'Check prop to update'
       if: ${{ env.is_core == 'true' }}
       run: |
-        repo_name=$(cat $GITHUB_ENV | grep repo_name | cut -d'=' -f2)
+        repo_name=${{ env.repo_name}}
         # Identificar a propriedade a ser alterada com base no repositório
         if [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" ]]; then
           PROPERTY_NAME="ged.core.version"
