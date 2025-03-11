@@ -73,9 +73,9 @@ runs:
       run: |
         cd parent
 
-        git submodule update --init --recursive
-        git submodule foreach git fetch origin
-        git submodule foreach git pull origin ${{ github.ref_name }}
+        git submodule update --init --recursive > /dev/null 2>&1
+        git submodule foreach git fetch origin > /dev/null 2>&1
+        git submodule foreach git pull origin ${{ github.ref_name }} > /dev/null 2>&1
 
         cd ..
         
@@ -119,9 +119,9 @@ runs:
       run: |
         cd parent
 
-        git submodule update --init --recursive
-        git submodule foreach git fetch origin
-        git submodule foreach git pull origin ${{ github.ref_name }}
+        git submodule update --init --recursive > /dev/null 2>&1
+        git submodule foreach git fetch origin > /dev/null 2>&1
+        git submodule foreach git pull origin ${{ github.ref_name }} > /dev/null 2>&1
 
         PROPERTY_NAME=${{ env.PROPERTY_NAME }}
         mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }} -q
