@@ -52,12 +52,6 @@ runs:
         token: ${{ inputs.github_token }}
         path: parent
         submodules: 'true'
-
-    - name: 'Checkout Repositório do Módulo'
-      uses: actions/checkout@v3
-      with:
-        token: ${{ inputs.github_token }}
-        path: module
   
     # Se for core, altera a versão do modulo especifico
 
@@ -82,7 +76,7 @@ runs:
       
     - name: 'Compile module with new version'
       run: |
-        cd module
+        cd parent/${{ env.repo_name }}
         mvn versions:set -DnewVersion=${{ inputs.version }}
 
         if [ -f package.json ]; then
