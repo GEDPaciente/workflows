@@ -106,7 +106,8 @@ runs:
         git pull --rebase origin ${{ github.ref_name }}
         
         # Fazer push da alteração para o repositório remoto
-        git push origin HEAD:${{ env.repo_name }}
+        BRANCH_NAME=$(echo ${{ github.ref_name }} | sed 's/refs\/heads\///g')
+        git push origin HEAD:$BRANCH_NAME
 
         echo "Versão atualizada e commitada para o módulo ${{ env.repo_name }}"
 
@@ -141,7 +142,8 @@ runs:
         git pull --rebase origin ${{ github.ref_name }}
 
         # Fazer push da alteração para o repositório remoto
-        git push origin HEAD:${{ env.repo_name }}
-
+        BRANCH_NAME=$(echo ${{ github.ref_name }} | sed 's/refs\/heads\///g')
+        git push origin HEAD:$BRANCH_NAME
+        
         echo "Versão atualizada e commitada para o parent"
       shell: bash
