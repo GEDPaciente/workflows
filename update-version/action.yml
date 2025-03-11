@@ -52,14 +52,11 @@ runs:
         token: ${{ inputs.github_token }}
         path: parent
         submodules: 'true'
-  
-    # Se for core, altera a versão do modulo especifico
 
     - name: 'Check prop to update'
       if: ${{ env.is_core == 'true' }}
       run: |
-        repo_name=${{ env.repo_name}}
-        # Identificar a propriedade a ser alterada com base no repositório
+        repo_name=${{ env.repo_name }}
         if [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" ]]; then
           PROPERTY_NAME="ged.core.version"
         elif [[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]]; then
@@ -69,25 +66,22 @@ runs:
         fi
 
         echo "Variavel para alteração: $PROPERTY_NAME"
-
-        # Salvar a propriedade em uma variável de ambiente
         echo "PROPERTY_NAME=$PROPERTY_NAME" >> $GITHUB_ENV
       shell: bash
-      
+
     - name: 'Compile module with new version'
       run: |
-
         cd parent
-        
+
         git submodule update --init --recursive
         git submodule foreach git fetch origin
         git submodule foreach git pull origin ${{ github.ref_name }}
-        
+
         cd ..
         
         cd parent/${{ env.repo_name }}
         
-        mvn versions:set -DnewVersion=${{ inputs.version }}
+        mvn versions:set -DnewVersion=${{ inputs.version }} -q
 
         if [ -f package.json ]; then
           echo "Atualizando versão no package.json para ${{ inputs.version }}"
@@ -95,8 +89,8 @@ runs:
           mv package.json.tmp package.json
           git add package.json
         fi
-        
-        echo "Versão alterada do modulo"
+
+        echo "Versão alterada do módulo"
 
         # Adicionar somente o pom.xml ao staging
         git add pom.xml
@@ -108,25 +102,28 @@ runs:
         # Comitar as mudanças no pom.xml
         git commit -m "Atualização da versão para ${{ inputs.version }}"
 
+        # Fazer pull antes de fazer push para evitar conflitos
+        git pull origin ${{ github.ref_name }} --rebase
+
         # Fazer push da alteração para o repositório remoto
         git push origin HEAD:${{ env.repo_name }}
 
-        echo "Versão atualizada e commitada para o modulo ${{ env.repo_name }}"
+        echo "Versão atualizada e commitada para o módulo ${{ env.repo_name }}"
 
         cd ..
       shell: bash
-      
+
     - name: 'Update version in parent'
       if: ${{ env.is_core == 'true' }}
       run: |
         cd parent
-        
+
         git submodule update --init --recursive
         git submodule foreach git fetch origin
         git submodule foreach git pull origin ${{ github.ref_name }}
 
         PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
-        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }}
+        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }} -q
 
         echo "Versão alterada da propriedade"
 
@@ -140,9 +137,11 @@ runs:
         # Comitar as mudanças no pom.xml
         git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }}"
 
+        # Fazer pull antes de fazer push para evitar conflitos
+        git pull origin ${{ github.ref_name }} --rebase
+
         # Fazer push da alteração para o repositório remoto
         git push origin HEAD:${{ env.repo_name }}
 
         echo "Versão atualizada e commitada para o parent"
       shell: bash
-      
