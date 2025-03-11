@@ -123,7 +123,7 @@ runs:
         git submodule foreach git fetch origin
         git submodule foreach git pull origin ${{ github.ref_name }}
 
-        PROPERTY_NAME=$(cat $GITHUB_ENV | grep PROPERTY_NAME | cut -d'=' -f2)
+        PROPERTY_NAME=${{ env.PROPERTY_NAME }}
         mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }} -q
 
         echo "Versão alterada da propriedade"
