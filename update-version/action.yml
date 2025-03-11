@@ -39,7 +39,7 @@ runs:
 
     - name: 'Is a Core?'
       run: |
-        IS_CORE=(! "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" && ! "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core")
+        IS_CORE=$([[ "$GITHUB_REPOSITORY" != "GEDPaciente/mv-ged-core" && "$GITHUB_REPOSITORY" != "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
         echo "É um core? $IS_CORE"
         echo "is_core=$IS_CORE" >> $GITHUB_ENV
       shell: bash
