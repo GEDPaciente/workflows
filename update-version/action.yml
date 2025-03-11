@@ -1,116 +1,52 @@
-name: '🎛️ Atualizar Versão'
-description: 'Atualiza a versão do módulo e realiza um commit.'
-inputs:
+name: '🚀 Version Flow'
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
   version:
-    description: 'Nova versão para ser definida no módulo.'
-    required: true
-  github_token:
-    description: 'Token para clonar workspace'
-    required: true 
-runs:
-  using: 'composite'
-  steps:
-    - name: 'Check Github Token'
-      run: |
-        if [ -z "${{ inputs.github_token }}" ]; then
-          echo "GitHub Token não fornecido."
-          exit 1
-        else
-          echo "GitHub Token está presente."
-        fi
-      shell: bash
+    name: 'Check version'
+    permissions: write-all
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check-version.outputs.version }}
+      release_branch: ${{ steps.check-version.outputs.release_branch }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: 'Check commit author'
+        run: |
+          COMMITTER=$(git log -1 --pretty=%an)
+          if [ "$COMMITTER" == "action@github.com" ]; then
+            echo "Commit feito por action@github.com, interrompendo o fluxo."
+            exit 0
+          fi
+      - id: check-version
+        uses: GEDPaciente/workflows/get-and-check-version@main
+        with:
+          release_branch: main
+          github_token: ${{ secrets.GED_PAT }}
 
-    - name: 'Input Vars Verification'
-      run: |
-        if [ -z "${{ inputs.version }}" ]; then
-          echo "Versão não fornecida."
-          exit 1
-        else
-          echo "Versão fornecida: ${{ inputs.version }}"
-        fi
-      shell: bash
+  compile:
+    needs: version
+    name: "Compile project"
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - id: compile
+        uses: GEDPaciente/workflows/compile@develop
+        with:
+          github_token: ${{ secrets.GED_PAT }}
 
-    - name: 'Github Repository Triggered by'
-      run: |
-        REPO_NAME=$(basename "${{ github.repository }}")
-        echo "O nome do repositório que disparou a action é: $REPO_NAME"
-        echo "repo_name=$REPO_NAME" >> $GITHUB_ENV
-      shell: bash
-
-    - name: 'Is a Core?'
-      run: |
-        IS_CORE=$([[ "$GITHUB_REPOSITORY" == "GEDPaciente/mv-ged-core" || "$GITHUB_REPOSITORY" == "GEDPaciente/mv-gap-core" ]] && echo true || echo false)
-        echo "É um core? $IS_CORE"
-        echo "is_core=$IS_CORE" >> $GITHUB_ENV
-      shell: bash
-
-    - name: 'Checkout Repositório Parent'
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ github.ref }}
-        repository: GEDPaciente/mv-ged-parent
-        token: ${{ inputs.github_token }}
-        path: parent
-        submodules: 'true'
-
-    - name: 'Alterar Versão do Módulo'
-      run: |
-        # Identificar a pasta do módulo disparador da ação
-        MODULE_PATH="parent/${{ env.repo_name }}"
-        echo "Caminho do módulo que disparou a ação: $MODULE_PATH"
-
-        # Alterar a versão do módulo dentro da pasta correspondente
-        cd $MODULE_PATH
-        mvn versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
-
-        # Se o package.json existir, atualiza a versão
-        if [ -f package.json ]; then
-          echo "Atualizando versão no package.json para ${{ inputs.version }}"
-          jq --arg version "${{ inputs.version }}" '.version = $version' package.json > package.json.tmp
-          mv package.json.tmp package.json
-          git add package.json
-        fi
-        
-        # Adicionar o pom.xml do módulo ao staging
-        git add pom.xml
-
-        # Configurar o usuário para o commit
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-
-        # Comitar as mudanças no pom.xml
-        git commit -m "Atualiza versão para ${{ inputs.version }}"
-
-        # Fazer push da alteração para o repositório remoto
-        git push
-      shell: bash
-
-    - name: 'Alterar Propriedade no POM do Parent'
-      if: ${{ env.is_core == 'true' }}
-      run: |
-        cd parent
-
-        # Identificar a propriedade a ser alterada com base no repositório
-        PROPERTY_NAME=${{ env.PROPERTY_NAME }}
-
-        # Alterar a versão no POM do Parent
-        echo "Alterando a versão da propriedade no pom.xml do Parent"
-        sed -i "s|<${PROPERTY_NAME}>.*</${PROPERTY_NAME}>|<${PROPERTY_NAME}>${{ inputs.version }}</${PROPERTY_NAME}>|" pom.xml
-        echo "Versão do parent alterada para ${{ inputs.version }} no pom.xml"
-
-        # Atualiza a propriedade no parent pom.xml usando o comando mvn
-        mvn versions:update-property -Dproperty=$PROPERTY_NAME -DnewVersion=${{ inputs.version }}
-
-        # Adicionar o pom.xml do Parent ao staging
-        git add pom.xml
-
-        # Configurar o usuário para o commit
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-
-        # Comitar as mudanças no pom.xml
-        git commit -m "Atualiza versão do $PROPERTY_NAME para ${{ inputs.version }} no Parent"
-
-        # Fazer push da alteração para o repositório remoto
-        git push HEAD:refs/heads/${{ github.ref }}
-      shell: bash
+  update-version:
+    needs: [version,compile]
+    name: "Update Version"
+    permissions: write-all
+    runs-on: ubuntu-latest
+    steps:
+      - id: compile
+        uses: GEDPaciente/workflows/update-version@develop
+        with:
+          github_token: ${{ secrets.GED_PAT }}
+          version: ${{ needs.version.outputs.version }}
